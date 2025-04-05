@@ -9,34 +9,78 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include "SineWaveVoice.h"
+
+#include "SineWaveSound.h"
+
 //==============================================================================
 
-juce::Synthesiser synth;
+
 
 _1xOscAudioProcessor::_1xOscAudioProcessor()
     : AudioProcessor (BusesProperties()
                       #if ! JucePlugin_IsMidiEffect
-                       .withInput ("Input", juce::AudioChannelSet::stereo(), true)  // Set up the audio input
+                       .withInput ("Input", juce::AudioChannelSet::stereo(), true)
                       #endif
-                      .withOutput ("Output", juce::AudioChannelSet::stereo(), true) // Set up the audio output
+                      .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                       #if JucePlugin_WantsMidiInput
-                      .withInput ("Midi Input", juce::AudioChannelSet::stereo(), true) // Optionally set up MIDI input if needed
+                      .withInput ("Midi Input", juce::AudioChannelSet::stereo(), true)
                       #endif
-                      )
+                      ),
+      apvts(*this, nullptr, "Parameters", createParameterLayout()) // Initialize APVTS
 {
-    synth.clearVoices();
-    for (int i = 0; i < 8; ++i) // Allow up to 8 voices
-        synth.addVoice (new SineWaveVoice());
-
-    synth.clearSounds();
-    synth.addSound (new SineWaveSound());
+    //apvts.addParameterListener("waveform", this); // <-- Add this line to listen for waveform changes
+    juce::File logFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("plugin_debug_log.txt");
+    juce::Logger::setCurrentLogger(new juce::FileLogger(logFile, "JUCE Plugin Debug Log", 100000));
+    juce::Logger::writeToLog("Logger initialized.");
 }
 
 _1xOscAudioProcessor::~_1xOscAudioProcessor()
 {
 }
 
+juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "waveform", "Waveform",
+        juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Noise"}, 0));
+
+    return { params.begin(), params.end() };
+}
+
 //==============================================================================
+void _1xOscAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    // Check if the waveform parameter has changed
+    if (parameterID == "waveform")
+    {
+        // Clear existing voices
+        synth.clearVoices();
+
+        // Add new voices based on the selected waveform
+        for (int i = 0; i < 8; ++i)
+        {
+            // Update the waveform based on the new parameter value
+            if (newValue == 0) // Sine
+                synth.addVoice(new SineWaveVoice());
+            /*else if (newValue == 1) // Square
+                synth.addVoice(new SquareWaveVoice());
+            else if (newValue == 2) // Triangle
+                synth.addVoice(new TriangleWaveVoice());
+            else if (newValue == 3) // Saw
+                synth.addVoice(new SawWaveVoice());
+            else if (newValue == 4) // Noise
+                synth.addVoice(new NoiseWaveVoice());*/
+        }
+
+        // Optionally update any other necessary parameters, like the sound
+        synth.clearSounds();
+        synth.addSound(new SineWaveSound());  // You can change this as well
+    }
+}
+
+
 const juce::String _1xOscAudioProcessor::getName() const
 {
     return JucePlugin_Name;
@@ -99,10 +143,37 @@ void _1xOscAudioProcessor::changeProgramName (int index, const juce::String& new
 }
 
 //==============================================================================
-void _1xOscAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void _1xOscAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    // Clear any existing voices
+    synth.clearVoices();
+
+    // Add voices based on the selected waveform
+    for (int i = 0; i < 8; ++i)
+    {
+        // Get the current waveform choice from the parameter
+        auto waveformChoice = apvts.getParameter("waveform")->getValue();
+
+        // Add the correct voice based on the waveform choice
+        if (waveformChoice == 0) // Sine
+            synth.addVoice(new SineWaveVoice());
+        /*else if (waveformChoice == 1) // Square
+            synth.addVoice(new SquareWaveVoice());
+        else if (waveformChoice == 2) // Triangle
+            synth.addVoice(new TriangleWaveVoice());
+        else if (waveformChoice == 3) // Saw
+            synth.addVoice(new SawWaveVoice());
+        else if (waveformChoice == 4) // Noise
+            synth.addVoice(new NoiseWaveVoice());*/
+    }
+
+    // Clear and set the sound
+    synth.clearSounds();
+    synth.addSound(new SineWaveSound());  // You can keep this for now or update it to match your voice
+
+    // Set the sample rate for the synth
+    synth.setCurrentPlaybackSampleRate(sampleRate);
+    juce::Logger::writeToLog("Synth voice count: " + juce::String(synth.getNumVoices()));
 }
 
 void _1xOscAudioProcessor::releaseResources()
@@ -191,6 +262,14 @@ void _1xOscAudioProcessor::setStateInformation (const void* data, int sizeInByte
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+void _1xOscAudioProcessor::parameterValueChanged(int parameterIndex, float newValue){
+    
+}
+
+void _1xOscAudioProcessor::parameterGestureChanged(int parameterIndex, bool gestureIsStarting){
+
 }
 
 //==============================================================================

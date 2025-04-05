@@ -9,76 +9,15 @@
 #pragma once
 
 #include <JuceHeader.h>
+#define JucePlugin_WantsMidiInput 1
+#define JucePlugin_ProducesMidiOutput 0
+#define JucePlugin_IsSynth 1  // Important! This tells JUCE the plugin is a synth
 
 //==============================================================================
 /**
 */
 
-class SineWaveSound : public juce::SynthesiserSound
-{
-public:
-    bool appliesToNote (int) override { return true; }
-    bool appliesToChannel (int) override { return true; }
-};
-
-class SineWaveVoice : public juce::SynthesiserVoice
-{
-public:
-    bool canPlaySound (juce::SynthesiserSound* sound) override
-    {
-        return dynamic_cast<SineWaveSound*> (sound) != nullptr;
-    }
-
-    void startNote (int midiNoteNumber, float velocity,
-                    juce::SynthesiserSound*, int) override
-    {
-        // Convert MIDI note to frequency
-        currentAngle = 0.0;
-        level = velocity;
-        frequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
-        angleDelta = juce::MathConstants<double>::twoPi * frequency / getSampleRate();
-    }
-
-    void stopNote (float, bool allowTailOff) override
-    {
-        if (!allowTailOff)
-            clearCurrentNote();
-    }
-
-    void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
-    {
-        if (!isVoiceActive())
-            return;
-
-        auto* buffer = outputBuffer.getWritePointer(0);
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            float sampleValue = std::sin(currentAngle) * level;
-            buffer[startSample + sample] = sampleValue;
-
-            currentAngle += angleDelta;
-        }
-    }
-    
-    void pitchWheelMoved (int newPitchWheelValue) override
-        {
-            // Implement what should happen when the pitch wheel is moved.
-            // For example, adjust the pitch of the sine wave.
-        }
-    
-    void controllerMoved (int controllerNumber, int newControllerValue) override
-        {
-            // Implement what should happen when the pitch wheel is moved.
-            // For example, adjust the pitch of the sine wave.
-        }
-    
-
-private:
-    double currentAngle = 0.0, angleDelta = 0.0, frequency = 440.0, level = 0.0;
-};
-
-class _1xOscAudioProcessor  : public juce::AudioProcessor
+class _1xOscAudioProcessor  : public juce::AudioProcessor, public juce::AudioProcessorParameter::Listener
 {
 public:
     //==============================================================================
@@ -117,8 +56,18 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    
+    juce::AudioProcessorValueTreeState apvts;
+    static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    void parameterChanged(const juce::String& parameterID, float newValue); // <-- Declare this method
 
+    
+    void parameterValueChanged(int parameterIndex, float newValue) override;
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override;
+    
+    
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (_1xOscAudioProcessor)
+    juce::Synthesiser synth;
 };

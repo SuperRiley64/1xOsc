@@ -16,6 +16,20 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (400, 300);
+    
+    // Setup waveform selector knob
+        waveformSelector.setSliderStyle(juce::Slider::Rotary);
+        waveformSelector.setRange(0, 4, 1); // 5 positions: 0-Sine, 1-Square, 2-Triangle, 3-Saw, 4-Noise
+        waveformSelector.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+        addAndMakeVisible(waveformSelector);
+
+        // Label for the waveform selector
+        waveformLabel.setText("Waveform", juce::dontSendNotification);
+        waveformLabel.setJustificationType(juce::Justification::centred);
+        addAndMakeVisible(waveformLabel);
+    
+    // Attach the slider to the parameter
+    waveformAttachment = std::make_unique<SliderAttachment>(audioProcessor.apvts, "waveform", waveformSelector);
 }
 
 _1xOscAudioProcessorEditor::~_1xOscAudioProcessorEditor()
@@ -35,6 +49,6 @@ void _1xOscAudioProcessorEditor::paint (juce::Graphics& g)
 
 void _1xOscAudioProcessorEditor::resized()
 {
-    // This is generally where you'll want to lay out the positions of any
-    // subcomponents in your editor..
+    waveformSelector.setBounds(150, 100, 100, 100);
+    waveformLabel.setBounds(150, 200, 100, 20);
 }
