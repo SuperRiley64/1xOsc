@@ -23,11 +23,10 @@ public:
 private:
     _1xOscAudioProcessor& audioProcessor;
 
-    juce::Slider waveformSelector;
     juce::Label waveformLabel;
     
-    using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
-        std::unique_ptr<SliderAttachment> waveformAttachment;
+    juce::ComboBox waveformComboBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> waveformAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (_1xOscAudioProcessorEditor)
 };

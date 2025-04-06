@@ -29,7 +29,7 @@ _1xOscAudioProcessor::_1xOscAudioProcessor()
                       ),
       apvts(*this, nullptr, "Parameters", createParameterLayout()) // Initialize APVTS
 {
-    //apvts.addParameterListener("waveform", this); // <-- Add this line to listen for waveform changes
+    apvts.addParameterListener("waveform", this); // <-- Add this line to listen for waveform changes
     juce::File logFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("plugin_debug_log.txt");
     juce::Logger::setCurrentLogger(new juce::FileLogger(logFile, "JUCE Plugin Debug Log", 100000));
     juce::Logger::writeToLog("Logger initialized.");
@@ -37,6 +37,7 @@ _1xOscAudioProcessor::_1xOscAudioProcessor()
 
 _1xOscAudioProcessor::~_1xOscAudioProcessor()
 {
+    apvts.removeParameterListener("waveform", this);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::createParameterLayout()
@@ -52,31 +53,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::create
 //==============================================================================
 void _1xOscAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
 {
-    // Check if the waveform parameter has changed
+    juce::Logger::writeToLog("parameterChanged called: " + parameterID);
     if (parameterID == "waveform")
     {
-        // Clear existing voices
-        synth.clearVoices();
+        juce::Logger::writeToLog("Waveform changed: " + juce::String(newValue));
+        SineWaveVoice::OscillatorMode selectedMode = SineWaveVoice::OscillatorMode::Sine;
 
-        // Add new voices based on the selected waveform
-        for (int i = 0; i < 8; ++i)
+        if (newValue == 0)
+            selectedMode = SineWaveVoice::OscillatorMode::Sine;
+        else if (newValue == 1)
+            selectedMode = SineWaveVoice::OscillatorMode::Square;
+        else if (newValue == 2)
+            selectedMode = SineWaveVoice::OscillatorMode::Triangle;
+        else if (newValue == 3)
+            selectedMode = SineWaveVoice::OscillatorMode::Saw;
+        else if (newValue == 4)
+            selectedMode = SineWaveVoice::OscillatorMode::Noise;
+
+        // Loop through all voices and set the new mode
+        for (int i = 0; i < synth.getNumVoices(); ++i)
         {
-            // Update the waveform based on the new parameter value
-            if (newValue == 0) // Sine
-                synth.addVoice(new SineWaveVoice());
-            /*else if (newValue == 1) // Square
-                synth.addVoice(new SquareWaveVoice());
-            else if (newValue == 2) // Triangle
-                synth.addVoice(new TriangleWaveVoice());
-            else if (newValue == 3) // Saw
-                synth.addVoice(new SawWaveVoice());
-            else if (newValue == 4) // Noise
-                synth.addVoice(new NoiseWaveVoice());*/
+            if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+                voice->setMode(selectedMode);
         }
-
-        // Optionally update any other necessary parameters, like the sound
-        synth.clearSounds();
-        synth.addSound(new SineWaveSound());  // You can change this as well
     }
 }
 
@@ -148,23 +147,10 @@ void _1xOscAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     // Clear any existing voices
     synth.clearVoices();
 
-    // Add voices based on the selected waveform
+    // Add voices
     for (int i = 0; i < 8; ++i)
     {
-        // Get the current waveform choice from the parameter
-        auto waveformChoice = apvts.getParameter("waveform")->getValue();
-
-        // Add the correct voice based on the waveform choice
-        if (waveformChoice == 0) // Sine
-            synth.addVoice(new SineWaveVoice());
-        /*else if (waveformChoice == 1) // Square
-            synth.addVoice(new SquareWaveVoice());
-        else if (waveformChoice == 2) // Triangle
-            synth.addVoice(new TriangleWaveVoice());
-        else if (waveformChoice == 3) // Saw
-            synth.addVoice(new SawWaveVoice());
-        else if (waveformChoice == 4) // Noise
-            synth.addVoice(new NoiseWaveVoice());*/
+        synth.addVoice(new SineWaveVoice());
     }
 
     // Clear and set the sound

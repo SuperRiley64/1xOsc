@@ -17,7 +17,7 @@
 /**
 */
 
-class _1xOscAudioProcessor  : public juce::AudioProcessor, public juce::AudioProcessorParameter::Listener
+class _1xOscAudioProcessor  : public juce::AudioProcessor, public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     //==============================================================================
@@ -59,11 +59,11 @@ public:
     
     juce::AudioProcessorValueTreeState apvts;
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
-    void parameterChanged(const juce::String& parameterID, float newValue); // <-- Declare this method
+    void parameterChanged(const juce::String& parameterID, float newValue) override; // <-- Declare this method
 
     
-    void parameterValueChanged(int parameterIndex, float newValue) override;
-    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override;
+    void parameterValueChanged(int parameterIndex, float newValue);
+    void parameterGestureChanged(int parameterIndex, bool gestureIsStarting);
     
     
 private:
