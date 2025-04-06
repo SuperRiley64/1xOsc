@@ -43,7 +43,7 @@ _1xOscAudioProcessor::~_1xOscAudioProcessor()
 juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+    params.push_back(std::make_unique<juce::AudioParameterChoice>( 
         "waveform", "Waveform",
         juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Noise"}, 0));
 
@@ -62,11 +62,11 @@ void _1xOscAudioProcessor::parameterChanged(const juce::String& parameterID, flo
         if (newValue == 0)
             selectedMode = SineWaveVoice::OscillatorMode::Sine;
         else if (newValue == 1)
-            selectedMode = SineWaveVoice::OscillatorMode::Square;
-        else if (newValue == 2)
             selectedMode = SineWaveVoice::OscillatorMode::Triangle;
-        else if (newValue == 3)
+        else if (newValue == 2)
             selectedMode = SineWaveVoice::OscillatorMode::Saw;
+        else if (newValue == 3)
+            selectedMode = SineWaveVoice::OscillatorMode::Square;
         else if (newValue == 4)
             selectedMode = SineWaveVoice::OscillatorMode::Noise;
 
@@ -144,18 +144,41 @@ void _1xOscAudioProcessor::changeProgramName (int index, const juce::String& new
 //==============================================================================
 void _1xOscAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    int waveform = static_cast<int>(*apvts.getRawParameterValue("waveform"));
     // Clear any existing voices
     synth.clearVoices();
 
     // Add voices
     for (int i = 0; i < 8; ++i)
     {
+        
         synth.addVoice(new SineWaveVoice());
     }
 
     // Clear and set the sound
     synth.clearSounds();
     synth.addSound(new SineWaveSound());  // You can keep this for now or update it to match your voice
+    
+    // Set the waveform of the synth
+    SineWaveVoice::OscillatorMode selectedMode = SineWaveVoice::OscillatorMode::Sine;
+
+    if (waveform == 0)
+        selectedMode = SineWaveVoice::OscillatorMode::Sine;
+    else if (waveform == 1)
+        selectedMode = SineWaveVoice::OscillatorMode::Triangle;
+    else if (waveform == 2)
+        selectedMode = SineWaveVoice::OscillatorMode::Saw;
+    else if (waveform == 3)
+        selectedMode = SineWaveVoice::OscillatorMode::Square;
+    else if (waveform == 4)
+        selectedMode = SineWaveVoice::OscillatorMode::Noise;
+
+    // Loop through all voices and set the new mode
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+            voice->setMode(selectedMode);
+    }
 
     // Set the sample rate for the synth
     synth.setCurrentPlaybackSampleRate(sampleRate);
@@ -242,12 +265,24 @@ void _1xOscAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     // You should use this method to store your parameters in the memory block.
     // You could do that either as raw data, or use the XML or ValueTree classes
     // as intermediaries to make it easy to save and load complex data.
+    
+    // Save the state of the APVTS
+    auto state = apvts.copyState();
+    std::unique_ptr<juce::XmlElement> xml (state.createXml());
+    copyXmlToBinary(*xml, destData);
 }
 
 void _1xOscAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+    
+    // Restore the state of the APVTS
+        std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary(data, sizeInBytes));
+        
+        if (xmlState != nullptr)
+            if (xmlState->hasTagName(apvts.state.getType()))
+                apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
 void _1xOscAudioProcessor::parameterValueChanged(int parameterIndex, float newValue){
