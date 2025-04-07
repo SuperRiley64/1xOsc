@@ -64,10 +64,10 @@ public:
     
     void parameterValueChanged(int parameterIndex, float newValue);
     void parameterGestureChanged(int parameterIndex, bool gestureIsStarting);
+    juce::Synthesiser synth;
     
     
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (_1xOscAudioProcessor)
-    juce::Synthesiser synth;
 };

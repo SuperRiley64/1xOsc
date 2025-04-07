@@ -46,7 +46,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterChoice>( 
         "waveform", "Waveform",
         juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Noise"}, 0));
-
+    
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", juce::NormalisableRange<float>(0.01f, 10.0f), 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("decay", "Decay", juce::NormalisableRange<float>(0.01f,10.0f), 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("sustain", "Sustain", juce::NormalisableRange<float>(0.0f, 1.0f), 1.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", juce::NormalisableRange<float>(0.01f, 10.0f), 0.1f));
+    
     return { params.begin(), params.end() };
 }
 

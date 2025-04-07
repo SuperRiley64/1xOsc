@@ -13,6 +13,16 @@ public:
         Square,
         Noise
     };
+    
+    SineWaveVoice(){
+        // Initialize ADSR default parameters
+        adsrParams.attack = 0.1f;
+        adsrParams.decay = 0.1f;
+        adsrParams.sustain = 0.7f;
+        adsrParams.release = 0.1f;
+
+        adsr.setParameters(adsrParams);  // Set the default ADSR values
+    }
 
     bool canPlaySound (juce::SynthesiserSound* sound) override
     {
@@ -27,20 +37,27 @@ public:
         tailOff = 0.0;
         frequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
         angleDelta = juce::MathConstants<double>::twoPi * frequency / getSampleRate();
+        
+        adsr.noteOn();
     }
 
     void stopNote (float /*velocity*/, bool allowTailOff) override
     {
         if (allowTailOff)
-        {
-            if (tailOff == 0.0)
-                tailOff = 1.0; // start fading out
-        }
-        else
-        {
-            clearCurrentNote();
-            angleDelta = 0.0;
-        }
+            {
+                adsr.noteOff();
+            }
+            else
+            {
+                clearCurrentNote();
+                adsr.reset();
+            }
+    }
+    
+    void setADSR(const juce::ADSR::Parameters& newParams)
+    {
+        adsrParams = newParams;
+        adsr.setParameters(adsrParams);  // Apply the new ADSR settings
     }
 
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
@@ -77,7 +94,7 @@ public:
                     break;
             }
 
-            sampleValue *= level;
+            sampleValue *= level * adsr.getNextSample();
 
             if (tailOff > 0.0)
             {
@@ -99,6 +116,11 @@ public:
 
             if (currentAngle > juce::MathConstants<double>::twoPi)
                 currentAngle -= juce::MathConstants<double>::twoPi;
+            
+            if (!adsr.isActive())
+                {
+                    clearCurrentNote();
+                }
         }
     }
 
@@ -118,4 +140,7 @@ private:
     double tailOff = 0.0;
 
     OscillatorMode mode = OscillatorMode::Sine;
+
+    juce::ADSR adsr; // ADSR object for the voice envelope
+    juce::ADSR::Parameters adsrParams; // ADSR parameters that are controlled by the sliders
 };
