@@ -49,6 +49,38 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
     releaseSlider.addListener(this);
     
     updateADSR();
+    
+    addSliderWithLabel(coarseTuneSlider, coarseTuneLabel, "Coarse");
+    addSliderWithLabel(fineTuneSlider, fineTuneLabel, "Fine");
+    
+    coarseTuneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "coarseTune", coarseTuneSlider);
+
+    fineTuneAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "fineTune", fineTuneSlider);
+    
+    // Coarse tune value label
+    coarseTuneValueLabel.setJustificationType(juce::Justification::centred);
+    coarseTuneValueLabel.setFont(juce::Font(14.0f));
+    addAndMakeVisible(coarseTuneValueLabel);
+
+    // Fine tune value label
+    fineTuneValueLabel.setJustificationType(juce::Justification::centred);
+    fineTuneValueLabel.setFont(juce::Font(14.0f));
+    addAndMakeVisible(fineTuneValueLabel);
+    
+    coarseTuneValueLabel.setText(juce::String(coarseTuneSlider.getValue(), 0), juce::dontSendNotification);
+    fineTuneValueLabel.setText(juce::String(fineTuneSlider.getValue(), 2), juce::dontSendNotification);
+    
+    coarseTuneSlider.onValueChange = [this]
+    {
+        coarseTuneValueLabel.setText(juce::String(coarseTuneSlider.getValue(), 0), juce::dontSendNotification);
+    };
+
+    fineTuneSlider.onValueChange = [this]
+    {
+        fineTuneValueLabel.setText(juce::String(fineTuneSlider.getValue(), 2), juce::dontSendNotification);
+    };
 }
 
 _1xOscAudioProcessorEditor::~_1xOscAudioProcessorEditor()
@@ -90,6 +122,30 @@ void _1xOscAudioProcessorEditor::resized()
     decaySlider.setBounds(100, adsrYOffset, sliderSize, sliderSize);
     sustainSlider.setBounds(180, adsrYOffset, sliderSize, sliderSize);
     releaseSlider.setBounds(260, adsrYOffset, sliderSize, sliderSize);
+    
+    // Position sliders
+    coarseTuneSlider.setBounds(120, 20, sliderSize, sliderSize);
+    coarseTuneLabel.setBounds(120, 95, 75, 20);
+
+    fineTuneSlider.setBounds(220, 20, sliderSize, sliderSize);
+    fineTuneLabel.setBounds(220, 95, 75, 20);
+
+        // Set slider parameters for Coarse Tune
+        coarseTuneSlider.setRange(-36.0, 36.0);
+        coarseTuneSlider.setValue(0.0);
+        coarseTuneSlider.setSliderStyle(juce::Slider::Rotary);
+        coarseTuneSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 80, 20);
+        addAndMakeVisible(coarseTuneSlider);
+
+        // Set slider parameters for Fine Tune
+        fineTuneSlider.setRange(-1.0, 1.0);
+        fineTuneSlider.setValue(0.0);
+        fineTuneSlider.setSliderStyle(juce::Slider::Rotary);
+        fineTuneSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 80, 20);
+        addAndMakeVisible(fineTuneSlider);
+    
+    coarseTuneValueLabel.setBounds(coarseTuneSlider.getX(), coarseTuneSlider.getBottom() - 45, coarseTuneSlider.getWidth(), 20);
+    fineTuneValueLabel.setBounds(fineTuneSlider.getX(), fineTuneSlider.getBottom() - 45, fineTuneSlider.getWidth(), 20);
 }
 
 void _1xOscAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)

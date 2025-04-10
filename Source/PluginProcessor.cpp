@@ -30,6 +30,8 @@ _1xOscAudioProcessor::_1xOscAudioProcessor()
       apvts(*this, nullptr, "Parameters", createParameterLayout()) // Initialize APVTS
 {
     apvts.addParameterListener("waveform", this); // <-- Add this line to listen for waveform changes
+    apvts.addParameterListener("coarseTune", this);
+    apvts.addParameterListener("fineTune", this);
     juce::File logFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("plugin_debug_log.txt");
     juce::Logger::setCurrentLogger(new juce::FileLogger(logFile, "JUCE Plugin Debug Log", 100000));
     juce::Logger::writeToLog("Logger initialized.");
@@ -43,14 +45,17 @@ _1xOscAudioProcessor::~_1xOscAudioProcessor()
 juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-    params.push_back(std::make_unique<juce::AudioParameterChoice>( 
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
         "waveform", "Waveform",
         juce::StringArray{"Sine", "Triangle", "Saw", "Square", "Noise"}, 0));
     
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", juce::NormalisableRange<float>(0.01f, 10.0f), 0.1f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("decay", "Decay", juce::NormalisableRange<float>(0.01f,10.0f), 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("attack", "Attack", juce::NormalisableRange<float>(0.01f, 5.0f), 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("decay", "Decay", juce::NormalisableRange<float>(0.01f,5.0f), 0.1f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("sustain", "Sustain", juce::NormalisableRange<float>(0.0f, 1.0f), 1.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", juce::NormalisableRange<float>(0.01f, 10.0f), 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("release", "Release", juce::NormalisableRange<float>(0.01f, 5.0f), 0.1f));
+    
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("coarseTune", "Coarse Tune", juce::NormalisableRange<float>(-36.0f, 36.0f, 1.0), 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("fineTune", "Fine Tune", juce::NormalisableRange<float>(-1.0f, 1.0f), 0.0f));
     
     return { params.begin(), params.end() };
 }
@@ -75,13 +80,32 @@ void _1xOscAudioProcessor::parameterChanged(const juce::String& parameterID, flo
         else if (newValue == 4)
             selectedMode = SineWaveVoice::OscillatorMode::Noise;
 
-        // Loop through all voices and set the new mode
+    apvts.removeParameterListener("waveform", this);
+    apvts.removeParameterListener("coarseTune", this);
+    apvts.removeParameterListener("fineTune", this);
         for (int i = 0; i < synth.getNumVoices(); ++i)
         {
             if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
                 voice->setMode(selectedMode);
         }
     }
+    if (parameterID == "coarseTune")
+    {
+        for (int i = 0; i < synth.getNumVoices(); ++i)
+        {
+            if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+                voice->setCoarseTune(newValue);
+        }
+    }
+    else if (parameterID == "fineTune")
+    {
+        for (int i = 0; i < synth.getNumVoices(); ++i)
+        {
+            if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+                voice->setFineTune(newValue);
+        }
+    }
+    
 }
 
 

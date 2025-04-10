@@ -14,6 +14,9 @@ public:
         Noise
     };
     
+    float coarseTune = 0.0f;
+    float fineTune = 0.0f;
+    
     SineWaveVoice(){
         // Initialize ADSR default parameters
         adsrParams.attack = 0.1f;
@@ -36,6 +39,7 @@ public:
         level = velocity;
         tailOff = 0.0;
         frequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+        updateFrequency();
         angleDelta = juce::MathConstants<double>::twoPi * frequency / getSampleRate();
         
         adsr.noteOn();
@@ -58,6 +62,33 @@ public:
     {
         adsrParams = newParams;
         adsr.setParameters(adsrParams);  // Apply the new ADSR settings
+    }
+    
+    void setCoarseTune(float newValue)
+    {
+        coarseTune = newValue;
+        updateFrequency();
+    }
+    
+    void setFineTune(float newValue)
+    {
+        fineTune = newValue;
+        updateFrequency();
+    }
+    
+    void updateFrequency()
+    {
+        // Apply coarse (in semitones) and fine (fraction of a semitone) tuning
+        double semitoneOffset = coarseTune + fineTune;
+        double tunedFrequency = frequency * std::pow(2.0, semitoneOffset / 12.0);
+        frequency = tunedFrequency;
+
+        angleDelta = juce::MathConstants<double>::twoPi * tunedFrequency / getSampleRate();
+
+        // Log values to desktop log file
+        juce::Logger::writeToLog("updateFrequency | coarseTune: " + juce::String(coarseTune) +
+                                 ", fineTune: " + juce::String(fineTune) +
+                                 ", tunedFrequency: " + juce::String(frequency));
     }
 
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override

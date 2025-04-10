@@ -40,12 +40,26 @@ private:
     juce::Label decayLabel;
     juce::Label sustainLabel;
     juce::Label releaseLabel;
+    
+    // Tuning Sliders
+    juce::Slider coarseTuneSlider;
+    juce::Slider fineTuneSlider;
+    
+    // Tuning Slider labels
+    juce::Label coarseTuneLabel;
+    juce::Label fineTuneLabel;
+    
+    juce::Label coarseTuneValueLabel;
+    juce::Label fineTuneValueLabel;
 
     // ADSR attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> decayAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
+    
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> coarseTuneAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fineTuneAttachment;
     
     // Declare the ADSR logic
     void sliderValueChanged(juce::Slider* slider) override;
