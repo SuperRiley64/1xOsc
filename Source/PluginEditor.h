@@ -61,9 +61,26 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> coarseTuneAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fineTuneAttachment;
     
+    // Filter variables
+    juce::Slider filterCutoffSlider;
+    juce::Slider filterResonanceSlider;
+    juce::Label filterCutoffLabel;
+    juce::Label filterResonanceLabel;
+
+    juce::ComboBox filterTypeBox;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filterCutoffAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filterResonanceAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> filterTypeAttachment;
+    
+    juce::Slider filterAttackSlider, filterDecaySlider, filterSustainSlider, filterReleaseSlider;
+    juce::Label filterAttackLabel, filterDecayLabel, filterSustainLabel, filterReleaseLabel;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
+        filterAttackAttachment, filterDecayAttachment, filterSustainAttachment, filterReleaseAttachment;
+    
     // Declare the ADSR logic
     void sliderValueChanged(juce::Slider* slider) override;
-    void updateADSR();
 
     // Helper method to configure sliders and labels
     void addSliderWithLabel(juce::Slider& slider, juce::Label& label, const juce::String& name);

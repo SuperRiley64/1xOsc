@@ -35,6 +35,7 @@ public:
     void startNote (int midiNoteNumber, float velocity,
                     juce::SynthesiserSound*, int) override
     {
+        noteNumber = midiNoteNumber;
         currentAngle = 0.0;
         level = velocity;
         tailOff = 0.0;
@@ -80,9 +81,8 @@ public:
     {
         // Apply coarse (in semitones) and fine (fraction of a semitone) tuning
         double semitoneOffset = coarseTune + fineTune;
-        double tunedFrequency = frequency * std::pow(2.0, semitoneOffset / 12.0);
-        frequency = tunedFrequency;
-
+        double baseFrequency = juce::MidiMessage::getMidiNoteInHertz(noteNumber);
+        double tunedFrequency = baseFrequency * std::pow(2.0, semitoneOffset / 12.0);
         angleDelta = juce::MathConstants<double>::twoPi * tunedFrequency / getSampleRate();
 
         // Log values to desktop log file
@@ -169,6 +169,8 @@ private:
     double level = 0.0;
     double frequency = 0.0;
     double tailOff = 0.0;
+    
+    int noteNumber = -1;
 
     OscillatorMode mode = OscillatorMode::Sine;
 

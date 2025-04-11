@@ -16,7 +16,7 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    setSize (400, 300);
+    setSize (500, 300);
 
     // Label for the waveform selector
     waveformLabel.setText("Waveform", juce::dontSendNotification);
@@ -43,12 +43,10 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
     addSliderWithLabel(sustainSlider, sustainLabel, "Sustain");
     addSliderWithLabel(releaseSlider, releaseLabel, "Release");
     
-    attackSlider.addListener(this);
-    decaySlider.addListener(this);
-    sustainSlider.addListener(this);
-    releaseSlider.addListener(this);
-    
-    updateADSR();
+    attackAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "attack",  attackSlider);
+    decayAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "decay",   decaySlider);
+    sustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "sustain", sustainSlider);
+    releaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "release", releaseSlider);
     
     addSliderWithLabel(coarseTuneSlider, coarseTuneLabel, "Coarse");
     addSliderWithLabel(fineTuneSlider, fineTuneLabel, "Fine");
@@ -81,6 +79,36 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
     {
         fineTuneValueLabel.setText(juce::String(fineTuneSlider.getValue(), 2), juce::dontSendNotification);
     };
+    
+    // Filter
+    addSliderWithLabel(filterCutoffSlider, filterCutoffLabel, "Cutoff");
+    addSliderWithLabel(filterResonanceSlider, filterResonanceLabel, "Resonance");
+
+    filterTypeBox.addItem("Lowpass", 1);
+    filterTypeBox.addItem("Bandpass", 2);
+    filterTypeBox.addItem("Highpass", 3);
+    addAndMakeVisible(filterTypeBox);
+
+    // Attachments
+    filterCutoffAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "filterCutoff", filterCutoffSlider);
+
+    filterResonanceAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "filterResonance", filterResonanceSlider);
+
+    filterTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        audioProcessor.apvts, "filterType", filterTypeBox);
+    
+    addSliderWithLabel(filterAttackSlider, filterAttackLabel, "F-Attack");
+    addSliderWithLabel(filterDecaySlider, filterDecayLabel, "F-Decay");
+    addSliderWithLabel(filterSustainSlider, filterSustainLabel, "F-Sustain");
+    addSliderWithLabel(filterReleaseSlider, filterReleaseLabel, "F-Release");
+
+    filterAttackAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterAttack",  filterAttackSlider);
+    filterDecayAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterDecay",   filterDecaySlider);
+    filterSustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterSustain", filterSustainSlider);
+    filterReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterRelease", filterReleaseSlider);
+    
 }
 
 _1xOscAudioProcessorEditor::~_1xOscAudioProcessorEditor()
@@ -119,61 +147,43 @@ void _1xOscAudioProcessorEditor::resized()
     const int sliderSize = 70;
     const int adsrYOffset = 100;
     attackSlider.setBounds(20, adsrYOffset, sliderSize, sliderSize);
-    decaySlider.setBounds(100, adsrYOffset, sliderSize, sliderSize);
-    sustainSlider.setBounds(180, adsrYOffset, sliderSize, sliderSize);
-    releaseSlider.setBounds(260, adsrYOffset, sliderSize, sliderSize);
+    decaySlider.setBounds(90, adsrYOffset, sliderSize, sliderSize);
+    sustainSlider.setBounds(160, adsrYOffset, sliderSize, sliderSize);
+    releaseSlider.setBounds(230, adsrYOffset, sliderSize, sliderSize);
     
     // Position sliders
     coarseTuneSlider.setBounds(120, 20, sliderSize, sliderSize);
     coarseTuneLabel.setBounds(120, 95, 75, 20);
 
-    fineTuneSlider.setBounds(220, 20, sliderSize, sliderSize);
-    fineTuneLabel.setBounds(220, 95, 75, 20);
-
-        // Set slider parameters for Coarse Tune
-        coarseTuneSlider.setRange(-36.0, 36.0);
-        coarseTuneSlider.setValue(0.0);
-        coarseTuneSlider.setSliderStyle(juce::Slider::Rotary);
-        coarseTuneSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 80, 20);
-        addAndMakeVisible(coarseTuneSlider);
-
-        // Set slider parameters for Fine Tune
-        fineTuneSlider.setRange(-1.0, 1.0);
-        fineTuneSlider.setValue(0.0);
-        fineTuneSlider.setSliderStyle(juce::Slider::Rotary);
-        fineTuneSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 80, 20);
-        addAndMakeVisible(fineTuneSlider);
+    fineTuneSlider.setBounds(200, 20, sliderSize, sliderSize);
+    fineTuneLabel.setBounds(200, 95, 75, 20);
+    fineTuneLabel.setBounds(200, 95, 75, 20);
     
     coarseTuneValueLabel.setBounds(coarseTuneSlider.getX(), coarseTuneSlider.getBottom() - 45, coarseTuneSlider.getWidth(), 20);
     fineTuneValueLabel.setBounds(fineTuneSlider.getX(), fineTuneSlider.getBottom() - 45, fineTuneSlider.getWidth(), 20);
+    
+    //Filter controls
+    filterTypeBox.setBounds(370, 265, 100, 25);
+
+    filterCutoffSlider.setBounds(350, 200, sliderSize, sliderSize);
+    filterCutoffLabel.setBounds(350, 300, 100, 20);
+
+    filterResonanceSlider.setBounds(420, 200, sliderSize, sliderSize);
+    filterResonanceLabel.setBounds(420, 300, 100, 20);
+    
+    int filterADSR_Y = 200;
+
+    filterAttackSlider.setBounds(20, filterADSR_Y, sliderSize, sliderSize);
+    filterDecaySlider.setBounds(90, filterADSR_Y, sliderSize, sliderSize);
+    filterSustainSlider.setBounds(160, filterADSR_Y, sliderSize, sliderSize);
+    filterReleaseSlider.setBounds(230, filterADSR_Y, sliderSize, sliderSize);
+    
+    filterAttackLabel.setBounds(filterAttackSlider.getX(), filterAttackSlider.getBottom(), sliderSize, 20);
+    filterDecayLabel.setBounds(filterDecaySlider.getX(), filterDecaySlider.getBottom(), sliderSize, 20);
+    filterSustainLabel.setBounds(filterSustainSlider.getX(), filterSustainSlider.getBottom(), sliderSize, 20);
+    filterReleaseLabel.setBounds(filterReleaseSlider.getX(), filterReleaseSlider.getBottom(), sliderSize, 20);
 }
 
 void _1xOscAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
 {
-    if (slider == &attackSlider ||
-        slider == &decaySlider ||
-        slider == &sustainSlider ||
-        slider == &releaseSlider)
-    {
-        updateADSR();
-    }
-}
-
-void _1xOscAudioProcessorEditor::updateADSR()
-{
-    // Update the ADSR parameters based on the slider values
-    juce::ADSR::Parameters newParams;
-    newParams.attack  = (float)attackSlider.getValue();
-    newParams.decay   = (float)decaySlider.getValue();
-    newParams.sustain = (float)sustainSlider.getValue();
-    newParams.release = (float)releaseSlider.getValue();
-
-    // Update the ADSR for all voices in the synthesizer
-    for (int i = 0; i < audioProcessor.synth.getNumVoices(); ++i)
-    {
-        if (auto* voice = dynamic_cast<SineWaveVoice*>(audioProcessor.synth.getVoice(i)))
-        {
-            voice->setADSR(newParams);
-        }
-    }
 }

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <juce_dsp/juce_dsp.h>
 #define JucePlugin_WantsMidiInput 1
 #define JucePlugin_ProducesMidiOutput 0
 #define JucePlugin_IsSynth 1  // Important! This tells JUCE the plugin is a synth
@@ -65,6 +66,11 @@ public:
     void parameterValueChanged(int parameterIndex, float newValue);
     void parameterGestureChanged(int parameterIndex, bool gestureIsStarting);
     juce::Synthesiser synth;
+    
+    juce::dsp::ProcessorDuplicator<
+        juce::dsp::StateVariableFilter::Filter<float>,
+        juce::dsp::StateVariableFilter::Parameters<float>
+    > filter;
     
     
 private:
