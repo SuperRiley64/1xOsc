@@ -100,14 +100,15 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
         audioProcessor.apvts, "filterType", filterTypeBox);
     
     addSliderWithLabel(filterAttackSlider, filterAttackLabel, "F-Attack");
-    addSliderWithLabel(filterDecaySlider, filterDecayLabel, "F-Decay");
+    addSliderWithLabel(filterDecaySlider, filterDecayLabel, "F-Dec/Rel");
     addSliderWithLabel(filterSustainSlider, filterSustainLabel, "F-Sustain");
-    addSliderWithLabel(filterReleaseSlider, filterReleaseLabel, "F-Release");
+    addSliderWithLabel(filterAmountSlider, filterAmountLabel, "F-Amount");
 
     filterAttackAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterAttack",  filterAttackSlider);
     filterDecayAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterDecay",   filterDecaySlider);
     filterSustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterSustain", filterSustainSlider);
-    filterReleaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterRelease", filterReleaseSlider);
+    filterAmountAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "filterAmount", filterAmountSlider);
     
 }
 
@@ -176,12 +177,12 @@ void _1xOscAudioProcessorEditor::resized()
     filterAttackSlider.setBounds(20, filterADSR_Y, sliderSize, sliderSize);
     filterDecaySlider.setBounds(90, filterADSR_Y, sliderSize, sliderSize);
     filterSustainSlider.setBounds(160, filterADSR_Y, sliderSize, sliderSize);
-    filterReleaseSlider.setBounds(230, filterADSR_Y, sliderSize, sliderSize);
+    filterAmountSlider.setBounds(230, filterADSR_Y, sliderSize, sliderSize);
     
     filterAttackLabel.setBounds(filterAttackSlider.getX(), filterAttackSlider.getBottom(), sliderSize, 20);
     filterDecayLabel.setBounds(filterDecaySlider.getX(), filterDecaySlider.getBottom(), sliderSize, 20);
     filterSustainLabel.setBounds(filterSustainSlider.getX(), filterSustainSlider.getBottom(), sliderSize, 20);
-    filterReleaseLabel.setBounds(filterReleaseSlider.getX(), filterReleaseSlider.getBottom(), sliderSize, 20);
+    filterAmountLabel.setBounds(filterAmountSlider.getX(), filterAmountSlider.getBottom(), sliderSize, 20);
 }
 
 void _1xOscAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)

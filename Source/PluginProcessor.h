@@ -67,10 +67,13 @@ public:
     void parameterGestureChanged(int parameterIndex, bool gestureIsStarting);
     juce::Synthesiser synth;
     
-    juce::dsp::ProcessorDuplicator<
-        juce::dsp::StateVariableFilter::Filter<float>,
-        juce::dsp::StateVariableFilter::Parameters<float>
-    > filter;
+    std::array<
+        juce::dsp::ProcessorDuplicator<
+            juce::dsp::StateVariableFilter::Filter<float>,
+            juce::dsp::StateVariableFilter::Parameters<float>
+        >,
+        2
+    > filters;
     
     
 private:

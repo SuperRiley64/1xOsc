@@ -17,6 +17,8 @@ public:
     float coarseTune = 0.0f;
     float fineTune = 0.0f;
     
+    float filterEnvelopeValue = 0.0f;
+    
     SineWaveVoice(){
         // Initialize ADSR default parameters
         adsrParams.attack = 0.1f;
@@ -25,6 +27,13 @@ public:
         adsrParams.release = 0.1f;
 
         adsr.setParameters(adsrParams);  // Set the default ADSR values
+        
+        filterEnvelopeParams.attack = 0.1f;
+        filterEnvelopeParams.decay = 0.1f;  // You’ll use the combined decay/release here
+        filterEnvelopeParams.sustain = 0.7f;
+        filterEnvelopeParams.release = 0.1f;
+
+        filterEnvelope.setParameters(filterEnvelopeParams);
     }
 
     bool canPlaySound (juce::SynthesiserSound* sound) override
@@ -44,6 +53,7 @@ public:
         angleDelta = juce::MathConstants<double>::twoPi * frequency / getSampleRate();
         
         adsr.noteOn();
+        filterEnvelope.noteOn();
     }
 
     void stopNote (float /*velocity*/, bool allowTailOff) override
@@ -51,11 +61,13 @@ public:
         if (allowTailOff)
             {
                 adsr.noteOff();
+                filterEnvelope.noteOff();
             }
             else
             {
                 clearCurrentNote();
                 adsr.reset();
+                filterEnvelope.reset();
             }
     }
     
@@ -63,6 +75,12 @@ public:
     {
         adsrParams = newParams;
         adsr.setParameters(adsrParams);  // Apply the new ADSR settings
+    }
+    
+    void setFilterADSR(const juce::ADSR::Parameters& newParams)
+    {
+        filterEnvelopeParams = newParams;
+        filterEnvelope.setParameters(filterEnvelopeParams);
     }
     
     void setCoarseTune(float newValue)
@@ -90,6 +108,8 @@ public:
                                  ", fineTune: " + juce::String(fineTune) +
                                  ", tunedFrequency: " + juce::String(frequency));
     }
+    
+    float getFilterEnvelopeValue() const { return filterEnvelopeValue; }
 
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
     {
@@ -126,6 +146,7 @@ public:
             }
 
             sampleValue *= level * adsr.getNextSample();
+            filterEnvelopeValue = filterEnvelope.getNextSample();
 
             if (tailOff > 0.0)
             {
@@ -176,4 +197,7 @@ private:
 
     juce::ADSR adsr; // ADSR object for the voice envelope
     juce::ADSR::Parameters adsrParams; // ADSR parameters that are controlled by the sliders
+    
+    juce::ADSR filterEnvelope;
+    juce::ADSR::Parameters filterEnvelopeParams;
 };

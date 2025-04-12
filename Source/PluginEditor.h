@@ -75,6 +75,10 @@ private:
     
     juce::Slider filterAttackSlider, filterDecaySlider, filterSustainSlider, filterReleaseSlider;
     juce::Label filterAttackLabel, filterDecayLabel, filterSustainLabel, filterReleaseLabel;
+    
+    juce::Slider filterAmountSlider;
+    juce::Label filterAmountLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> filterAmountAttachment;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
         filterAttackAttachment, filterDecayAttachment, filterSustainAttachment, filterReleaseAttachment;

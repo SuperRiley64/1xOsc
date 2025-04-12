@@ -90,9 +90,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::create
         juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f), 1.0f));
     
     params.push_back(std::make_unique<juce::AudioParameterFloat>("filterAttack", "Filter Attack", juce::NormalisableRange<float>(0.01f, 5.0f), 0.1f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("filterDecay", "Filter Decay", juce::NormalisableRange<float>(0.01f, 5.0f), 0.1f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>("filterDecayRelease", "Filter Decay/Release", juce::NormalisableRange<float>(0.01f, 5.0f), 0.1f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("filterSustain", "Filter Sustain", juce::NormalisableRange<float>(0.0f, 1.0f), 1.0f));
-    params.push_back(std::make_unique<juce::AudioParameterFloat>("filterRelease", "Filter Release", juce::NormalisableRange<float>(0.01f, 5.0f), 0.1f));
+    
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "filterAmount", "Filter Amount",
+        juce::NormalisableRange<float>(-100.0f, 100.0f, 0.1f), 0.0f));
     
     return { params.begin(), params.end() };
 }
@@ -155,6 +158,21 @@ void _1xOscAudioProcessor::parameterChanged(const juce::String& parameterID, flo
         }
     }
     
+    else if (parameterID == "filterAttack" || parameterID == "filterDecayRelease" ||
+             parameterID == "filterSustain")
+    {
+        juce::ADSR::Parameters filterParams;
+        filterParams.attack  = apvts.getRawParameterValue("filterAttack")->load();
+        filterParams.decay   = apvts.getRawParameterValue("filterDecayRelease")->load();
+        filterParams.sustain = apvts.getRawParameterValue("filterSustain")->load();
+        filterParams.release = apvts.getRawParameterValue("filterDecayRelease")->load(); // same knob
+
+        for (int i = 0; i < synth.getNumVoices(); ++i)
+        {
+            if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+                voice->setFilterADSR(filterParams); // implement this
+        }
+    }
 }
 
 
@@ -268,8 +286,11 @@ void _1xOscAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     spec.maximumBlockSize = samplesPerBlock;
     spec.numChannels = getTotalNumOutputChannels();
 
-    filter.prepare(spec);
-    filter.reset();
+    for (auto& f : filters)
+    {
+        f.prepare(spec);
+        f.reset();
+    }
 }
 
 void _1xOscAudioProcessor::releaseResources()
@@ -338,30 +359,44 @@ void _1xOscAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     auto* cutoffParam = apvts.getRawParameterValue("filterCutoff");
     auto* resonanceParam = apvts.getRawParameterValue("filterResonance");
     auto* typeParam = apvts.getRawParameterValue("filterType");
-
-    if (auto* filterParams = filter.state.get())
+    
+    float filterAttack  = apvts.getRawParameterValue("filterAttack")->load();
+    float filterDecayRelease = apvts.getRawParameterValue("filterDecayRelease")->load();
+    float filterSustain = apvts.getRawParameterValue("filterSustain")->load();
+    float filterAmount = apvts.getRawParameterValue("filterAmount")->load() / 100.0f; // -1.0 to 1.0
+    
+    // pull the filter envelope from a voice
+    float env = 1.0f;// fallback value
+    if (synth.getNumVoices() > 0)
     {
-        // Get the parameter values
-        float cutoff = cutoffParam->load();
-        float resonance = resonanceParam->load();
-        int type = static_cast<int>(typeParam->load());
+        if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(0)))
+            env = voice->getFilterEnvelopeValue(); // returns 0–1
+    }
 
-        // Set the filter parameters safely
-        filterParams->setCutOffFrequency(getSampleRate(), cutoff, resonance);
+    float cutoff = std::clamp(cutoffParam->load(), 20.0f, 20000.0f);
+    float resonance = std::clamp(resonanceParam->load(), 0.1f, 10.0f);
+    int type = static_cast<int>(typeParam->load());
 
-        using FilterType = juce::dsp::StateVariableFilter::Parameters<float>::Type;
-        switch (type)
-        {
-            case 0: filterParams->type = FilterType::lowPass; break;
-            case 1: filterParams->type = FilterType::bandPass; break;
-            case 2: filterParams->type = FilterType::highPass; break;
-            default: break;
-        }
+    using FilterType = juce::dsp::StateVariableFilter::Parameters<float>::Type;
+    FilterType filterType = FilterType::lowPass;
+    if (type == 1) filterType = FilterType::bandPass;
+    else if (type == 2) filterType = FilterType::highPass;
 
-        // Process the filter on the buffer
-        juce::dsp::AudioBlock<float> block(buffer);
-        juce::dsp::ProcessContextReplacing<float> context(block);
-        //filter.process(context);
+    juce::dsp::AudioBlock<float> block(buffer);
+    for (size_t ch = 0; ch < filters.size(); ++ch)
+    {
+        auto& f = filters[ch];
+        auto* filterParams = f.state.get();
+        
+        float modulatedCutoff = cutoff + (env * filterAmount * cutoff);
+        modulatedCutoff = std::clamp(modulatedCutoff, 20.0f, 20000.0f);
+
+        filterParams->type = filterType;
+        filterParams->setCutOffFrequency(getSampleRate(), modulatedCutoff, resonance);
+
+        auto channelBlock = block.getSingleChannelBlock(static_cast<int>(ch));
+        juce::dsp::ProcessContextReplacing<float> context(channelBlock);
+        f.process(context);
     }
 
 }
