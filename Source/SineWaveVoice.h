@@ -40,6 +40,23 @@ public:
     {
         return dynamic_cast<SineWaveSound*> (sound) != nullptr;
     }
+    
+    void setCurrentPlaybackSampleRate(double newRate) override
+    {
+        SynthesiserVoice::setCurrentPlaybackSampleRate(newRate);
+        filterEnvelope.setSampleRate(newRate);
+        filter.prepare({ newRate, 512, 1 });
+    }
+    
+    void setFilterParams(float cutoff, float resonance,
+                         juce::dsp::StateVariableFilter::Parameters<float>::Type type,
+                         float envAmount)
+    {
+        filterCutoff = cutoff;
+        filterResonance = resonance;
+        filterType = type;
+        filterAmount = envAmount;
+    }
 
     void startNote (int midiNoteNumber, float velocity,
                     juce::SynthesiserSound*, int) override
@@ -53,7 +70,10 @@ public:
         angleDelta = juce::MathConstants<double>::twoPi * frequency / getSampleRate();
         
         adsr.noteOn();
+        filterEnvelope.setParameters(filterEnvelopeParams);
+        filterEnvelope.reset();
         filterEnvelope.noteOn();
+        filter.prepare({ getSampleRate(), 512, 1 });
     }
 
     void stopNote (float /*velocity*/, bool allowTailOff) override
@@ -65,9 +85,9 @@ public:
             }
             else
             {
-                clearCurrentNote();
                 adsr.reset();
                 filterEnvelope.reset();
+                clearCurrentNote();
             }
     }
     
@@ -79,6 +99,10 @@ public:
     
     void setFilterADSR(const juce::ADSR::Parameters& newParams)
     {
+        juce::Logger::writeToLog("setFilterADSR called: A=" + juce::String(newParams.attack) +
+                                 ", D=" + juce::String(newParams.decay) +
+                                 ", S=" + juce::String(newParams.sustain) +
+                                 ", R=" + juce::String(newParams.release));
         filterEnvelopeParams = newParams;
         filterEnvelope.setParameters(filterEnvelopeParams);
     }
@@ -93,6 +117,11 @@ public:
     {
         fineTune = newValue;
         updateFrequency();
+    }
+    
+    void setSpecial(float newValue)
+    {
+        special = newValue;
     }
     
     void updateFrequency()
@@ -125,28 +154,80 @@ public:
             switch (mode)
             {
                 case OscillatorMode::Sine:
-                    sampleValue = std::sin(currentAngle);
-                    break;
+                {
+                    sampleValue = 0.0f;
 
-                case OscillatorMode::Square:
-                    sampleValue = std::sin(currentAngle) >= 0.0 ? 1.0f : -1.0f;
-                    break;
+                    // Dynamically compute number of harmonics based on 'special' (1 to 20)
+                    int maxHarmonics = static_cast<int>(1 + special * 20);  // 1 to 50 harmonics
 
-                case OscillatorMode::Saw:
-                    sampleValue = (float)(2.0 * (currentAngle / juce::MathConstants<double>::twoPi) - 1.0);
-                    break;
+                    for (int h = 1; h <= maxHarmonics; ++h)
+                    {
+                        float amplitude = 1.0f / static_cast<float>(h);  // simple harmonic falloff
+                        sampleValue += amplitude * std::sin(currentAngle * h);
+                    }
 
+                    sampleValue *= 0.5f; // basic normalization (can be tuned further if needed)
+                    break;
+                }
                 case OscillatorMode::Triangle:
-                    sampleValue = (float)(2.0 * std::abs(2.0 * (currentAngle / juce::MathConstants<double>::twoPi) - 1.0) - 1.0);
+                {
+                    // Folded triangle (approximation)
+                    double folded = std::asin(std::sin(currentAngle)); // classic triangle
+                    sampleValue = (float)(folded * (1.0 + special * 4.0)); // more folding
                     break;
-
+                }
+                case OscillatorMode::Saw:
+                {
+                    // Supersaw detune — mix two saws with slight detune
+                    double detune = special * 0.02;
+                    double angle2 = currentAngle + detune;
+                    float saw1 = (float)(2.0 * (currentAngle / juce::MathConstants<double>::twoPi) - 1.0);
+                    float saw2 = (float)(2.0 * (fmod(angle2, juce::MathConstants<double>::twoPi) / juce::MathConstants<double>::twoPi) - 1.0);
+                    sampleValue = 0.5f * (saw1 + saw2);
+                    break;
+                }
+                case OscillatorMode::Square:
+                {
+                    // Pulse Width Modulation — center = 0.5, range = 0.01 to 0.99
+                    double pw = 0.5 + special * 0.49;
+                    double phase = fmod(currentAngle / juce::MathConstants<double>::twoPi, 1.0);
+                    sampleValue = (phase < pw) ? 1.0f : -1.0f;
+                    break;
+                }
                 case OscillatorMode::Noise:
+                {
                     sampleValue = juce::Random::getSystemRandom().nextFloat() * 2.0f - 1.0f;
                     break;
+                }
             }
 
-            sampleValue *= level * adsr.getNextSample();
+            float ampEnv = adsr.getNextSample();
             filterEnvelopeValue = filterEnvelope.getNextSample();
+            
+            // Apply envelope to filter cutoff
+            //float modulatedCutoff = filterCutoff * std::pow(2.0f, filterEnvelopeValue * filterAmount);
+            float modulatedCutoff = filterCutoff + filterEnvelopeValue * (filterAmount * (20000.0f - 20.0f)); // full range
+            modulatedCutoff = std::clamp(modulatedCutoff, 20.0f, 20000.0f);
+            //juce::Logger::writeToLog("env: " + juce::String(filterEnvelopeValue) + " modulatedCutoff: " + juce::String(modulatedCutoff));
+            
+            if (auto* params = filter.state.get())
+            {
+                params->setCutOffFrequency(getSampleRate(), modulatedCutoff, filterResonance);
+                params->type = filterType;
+            }
+
+            float temp = sampleValue;
+            float* channelData[] = { &temp };
+
+            juce::dsp::AudioBlock<float> block(channelData, 1, 1); // 1 channel, 1 sample
+            juce::dsp::ProcessContextReplacing<float> context(block);
+            filter.process(context);
+
+            sampleValue = temp;
+            
+            float filtered = sampleValue;
+            
+            sampleValue = filtered * level * ampEnv;
 
             if (tailOff > 0.0)
             {
@@ -190,6 +271,7 @@ private:
     double level = 0.0;
     double frequency = 0.0;
     double tailOff = 0.0;
+    double special = 0.0;
     
     int noteNumber = -1;
 
@@ -200,4 +282,15 @@ private:
     
     juce::ADSR filterEnvelope;
     juce::ADSR::Parameters filterEnvelopeParams;
+    
+    juce::dsp::ProcessorDuplicator<
+        juce::dsp::StateVariableFilter::Filter<float>,
+        juce::dsp::StateVariableFilter::Parameters<float>
+    > filter;
+    
+    float filterCutoff = 1000.0f;
+    float filterResonance = 0.7f;
+    float filterAmount = 0.0f;
+    juce::dsp::StateVariableFilter::Parameters<float>::Type filterType =
+        juce::dsp::StateVariableFilter::Parameters<float>::Type::lowPass;
 };

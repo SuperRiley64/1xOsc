@@ -40,6 +40,10 @@ _1xOscAudioProcessor::_1xOscAudioProcessor()
     apvts.addParameterListener("sustain", this);
     apvts.addParameterListener("release", this);
     
+    apvts.addParameterListener("filterAttack", this);
+    apvts.addParameterListener("filterDecayRelease", this);
+    apvts.addParameterListener("filterSustain", this);
+    
     juce::File logFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("plugin_debug_log.txt");
     juce::Logger::setCurrentLogger(new juce::FileLogger(logFile, "JUCE Plugin Debug Log", 100000));
     juce::Logger::writeToLog("Logger initialized.");
@@ -55,6 +59,10 @@ _1xOscAudioProcessor::~_1xOscAudioProcessor()
     apvts.removeParameterListener("decay", this);
     apvts.removeParameterListener("sustain", this);
     apvts.removeParameterListener("release", this);
+    
+    apvts.removeParameterListener("filterAttack", this);
+    apvts.removeParameterListener("filterDecayRelease", this);
+    apvts.removeParameterListener("filterSustain", this);
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::createParameterLayout()
@@ -75,6 +83,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::create
     // Tuning
     params.push_back(std::make_unique<juce::AudioParameterFloat>("coarseTune", "Coarse Tune", juce::NormalisableRange<float>(-36.0f, 36.0f, 1.0), 0.0f));
     params.push_back(std::make_unique<juce::AudioParameterFloat>("fineTune", "Fine Tune", juce::NormalisableRange<float>(-1.0f, 1.0f), 0.0f));
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "special", "Special", juce::NormalisableRange<float>(0.0f, 1.0f), 0.0f));
     
     // Filtering
     params.push_back(std::make_unique<juce::AudioParameterChoice>(
@@ -96,6 +106,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout _1xOscAudioProcessor::create
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
         "filterAmount", "Filter Amount",
         juce::NormalisableRange<float>(-100.0f, 100.0f, 0.1f), 0.0f));
+    
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "level", "Level", juce::NormalisableRange<float>(0.0f, 1.0f), 0.8f));
     
     return { params.begin(), params.end() };
 }
@@ -170,7 +183,7 @@ void _1xOscAudioProcessor::parameterChanged(const juce::String& parameterID, flo
         for (int i = 0; i < synth.getNumVoices(); ++i)
         {
             if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
-                voice->setFilterADSR(filterParams); // implement this
+                voice->setFilterADSR(filterParams);
         }
     }
 }
@@ -353,6 +366,20 @@ void _1xOscAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         // ..do something to the data...
     }
     
+    // Update the special knob
+    float special = apvts.getRawParameterValue("special")->load();
+    // update the special value in the voices
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+        {
+            if (voice->isVoiceActive())
+            {
+                voice->setSpecial(special);
+            }
+        }
+    }
+    
     synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
     
     // Apply filter DSP
@@ -360,44 +387,33 @@ void _1xOscAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     auto* resonanceParam = apvts.getRawParameterValue("filterResonance");
     auto* typeParam = apvts.getRawParameterValue("filterType");
     
-    float filterAttack  = apvts.getRawParameterValue("filterAttack")->load();
-    float filterDecayRelease = apvts.getRawParameterValue("filterDecayRelease")->load();
-    float filterSustain = apvts.getRawParameterValue("filterSustain")->load();
     float filterAmount = apvts.getRawParameterValue("filterAmount")->load() / 100.0f; // -1.0 to 1.0
     
-    // pull the filter envelope from a voice
-    float env = 1.0f;// fallback value
-    if (synth.getNumVoices() > 0)
-    {
-        if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(0)))
-            env = voice->getFilterEnvelopeValue(); // returns 0–1
-    }
-
-    float cutoff = std::clamp(cutoffParam->load(), 20.0f, 20000.0f);
+    
+    float baseCutoff = std::clamp(cutoffParam->load(), 20.0f, 20000.0f);
     float resonance = std::clamp(resonanceParam->load(), 0.1f, 10.0f);
-    int type = static_cast<int>(typeParam->load());
+    int typeValue = static_cast<int>(typeParam->load());
 
-    using FilterType = juce::dsp::StateVariableFilter::Parameters<float>::Type;
-    FilterType filterType = FilterType::lowPass;
-    if (type == 1) filterType = FilterType::bandPass;
-    else if (type == 2) filterType = FilterType::highPass;
+    juce::dsp::StateVariableFilter::Parameters<float>::Type filterType =
+        juce::dsp::StateVariableFilter::Parameters<float>::Type::lowPass;
+    if (typeValue == 1) filterType = juce::dsp::StateVariableFilter::Parameters<float>::Type::bandPass;
+    else if (typeValue == 2) filterType = juce::dsp::StateVariableFilter::Parameters<float>::Type::highPass;
 
-    juce::dsp::AudioBlock<float> block(buffer);
-    for (size_t ch = 0; ch < filters.size(); ++ch)
+    // pass all that to each active voice
+    for (int i = 0; i < synth.getNumVoices(); ++i)
     {
-        auto& f = filters[ch];
-        auto* filterParams = f.state.get();
-        
-        float modulatedCutoff = cutoff + (env * filterAmount * cutoff);
-        modulatedCutoff = std::clamp(modulatedCutoff, 20.0f, 20000.0f);
-
-        filterParams->type = filterType;
-        filterParams->setCutOffFrequency(getSampleRate(), modulatedCutoff, resonance);
-
-        auto channelBlock = block.getSingleChannelBlock(static_cast<int>(ch));
-        juce::dsp::ProcessContextReplacing<float> context(channelBlock);
-        f.process(context);
+        if (auto* voice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i)))
+        {
+            if (voice->isVoiceActive())
+            {
+                voice->setFilterParams(baseCutoff, resonance, filterType, filterAmount);
+            }
+        }
     }
+    
+    // Apply the level
+    float level = *apvts.getRawParameterValue("level");
+    buffer.applyGain(level);
 
 }
 

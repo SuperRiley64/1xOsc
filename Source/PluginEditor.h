@@ -34,12 +34,16 @@ private:
     juce::Slider decaySlider;
     juce::Slider sustainSlider;
     juce::Slider releaseSlider;
+    
+    juce::Slider levelSlider;
 
     // ADSR labels
     juce::Label attackLabel;
     juce::Label decayLabel;
     juce::Label sustainLabel;
     juce::Label releaseLabel;
+    
+    juce::Label levelLabel;
     
     // Tuning Sliders
     juce::Slider coarseTuneSlider;
@@ -51,12 +55,18 @@ private:
     
     juce::Label coarseTuneValueLabel;
     juce::Label fineTuneValueLabel;
+    
+    // Special slider
+    juce::Slider specialSlider;
+    juce::Label specialLabel;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> specialAttachment;
 
     // ADSR attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> decayAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> levelAttachment;
     
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> coarseTuneAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> fineTuneAttachment;

@@ -105,10 +105,19 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
     addSliderWithLabel(filterAmountSlider, filterAmountLabel, "F-Amount");
 
     filterAttackAttachment  = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterAttack",  filterAttackSlider);
-    filterDecayAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterDecay",   filterDecaySlider);
+    filterDecayAttachment   = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterDecayRelease",   filterDecaySlider);
     filterSustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "filterSustain", filterSustainSlider);
     filterAmountAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "filterAmount", filterAmountSlider);
+    
+    addSliderWithLabel(levelSlider, levelLabel, "Level");
+
+    levelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "level", levelSlider);
+    
+    addSliderWithLabel(specialSlider, specialLabel, "Special");
+    specialAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        audioProcessor.apvts, "special", specialSlider);
     
 }
 
@@ -158,7 +167,9 @@ void _1xOscAudioProcessorEditor::resized()
 
     fineTuneSlider.setBounds(200, 20, sliderSize, sliderSize);
     fineTuneLabel.setBounds(200, 95, 75, 20);
-    fineTuneLabel.setBounds(200, 95, 75, 20);
+    
+    specialSlider.setBounds(280, 20, 70, 70); // adjust coordinates as needed
+    specialLabel.setBounds(specialSlider.getX(), specialSlider.getBottom(), 70, 20);
     
     coarseTuneValueLabel.setBounds(coarseTuneSlider.getX(), coarseTuneSlider.getBottom() - 45, coarseTuneSlider.getWidth(), 20);
     fineTuneValueLabel.setBounds(fineTuneSlider.getX(), fineTuneSlider.getBottom() - 45, fineTuneSlider.getWidth(), 20);
@@ -183,6 +194,9 @@ void _1xOscAudioProcessorEditor::resized()
     filterDecayLabel.setBounds(filterDecaySlider.getX(), filterDecaySlider.getBottom(), sliderSize, 20);
     filterSustainLabel.setBounds(filterSustainSlider.getX(), filterSustainSlider.getBottom(), sliderSize, 20);
     filterAmountLabel.setBounds(filterAmountSlider.getX(), filterAmountSlider.getBottom(), sliderSize, 20);
+    
+    levelSlider.setBounds(300, adsrYOffset, 70, 70);
+    levelLabel.setBounds(levelSlider.getX(), levelSlider.getBottom(), 70, 20);
 }
 
 void _1xOscAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
