@@ -129,7 +129,7 @@ public:
         // Apply coarse (in semitones) and fine (fraction of a semitone) tuning
         double semitoneOffset = coarseTune + fineTune;
         double baseFrequency = juce::MidiMessage::getMidiNoteInHertz(noteNumber);
-        double tunedFrequency = baseFrequency * std::pow(2.0, semitoneOffset / 12.0);
+        tunedFrequency = baseFrequency * std::pow(2.0, semitoneOffset / 12.0);
         angleDelta = juce::MathConstants<double>::twoPi * tunedFrequency / getSampleRate();
 
         // Log values to desktop log file
@@ -171,20 +171,48 @@ public:
                 }
                 case OscillatorMode::Triangle:
                 {
-                    // Folded triangle (approximation)
-                    double folded = std::asin(std::sin(currentAngle)); // classic triangle
-                    sampleValue = (float)(folded * (1.0 + special * 4.0)); // more folding
+                    // Desmos-based triangle with g = special
+                    // Mimics Arturia Minibrute metalizer
+                    double g =  special * 10 + 1;
+                    double phase = fmod(currentAngle / juce::MathConstants<double>::twoPi, 1.0); // 0 to 1
+
+                    double t = std::abs(fmod(phase, 1.0) - 0.5) * 2.0 * g;
+                    double a = std::min(t, 1.0) - std::max(t, 1.0) + 1.0;
+                    double b = std::max(a, 0.0) - std::min(a, 0.0);
+
+                    sampleValue = (float)b - 0.5;
                     break;
                 }
                 case OscillatorMode::Saw:
                 {
-                    // Supersaw detune — mix two saws with slight detune
-                    double detune = special * 0.02;
-                    double angle2 = currentAngle + detune;
-                    float saw1 = (float)(2.0 * (currentAngle / juce::MathConstants<double>::twoPi) - 1.0);
-                    float saw2 = (float)(2.0 * (fmod(angle2, juce::MathConstants<double>::twoPi) / juce::MathConstants<double>::twoPi) - 1.0);
-                    sampleValue = 0.5f * (saw1 + saw2);
-                    break;
+                    if (special > 0.0f) {
+                        float detuneOffsets[7] = { -3.0f, -2.0f, -1.0f, 0.0f, 1.0f, 2.0f, 3.0f };
+                        sampleValue = 0.0f;
+                        
+                        for (int i = 0; i < 7; ++i)
+                        {
+                            float detune = detuneOffsets[i] * static_cast<float>(special/4.0f); // bring the range down a bit
+                            double freq = tunedFrequency * std::pow(2.0, detune / 12.0);
+                            double phaseDelta = juce::MathConstants<double>::twoPi * freq / getSampleRate();
+                            
+                            detunedPhases[i] += phaseDelta;
+                            if (detunedPhases[i] > juce::MathConstants<double>::twoPi)
+                                detunedPhases[i] -= juce::MathConstants<double>::twoPi;
+                            
+                            double phase = detunedPhases[i] / juce::MathConstants<double>::twoPi;
+                            double saw = 2.0 * phase - 1.0;
+                            
+                            sampleValue += static_cast<float>(saw);
+                        }
+                        
+                        sampleValue /= 7.0f;
+                        break;
+                    }
+                    else {
+                        // simple saw
+                        double phase = currentAngle / juce::MathConstants<double>::twoPi;
+                        sampleValue = static_cast<float>(2.0 * phase - 1.0); // output in range [-1, 1]
+                    }
                 }
                 case OscillatorMode::Square:
                 {
@@ -272,6 +300,8 @@ private:
     double frequency = 0.0;
     double tailOff = 0.0;
     double special = 0.0;
+    double tunedFrequency = 0.0;
+    double detunedPhases[7] = {};
     
     int noteNumber = -1;
 

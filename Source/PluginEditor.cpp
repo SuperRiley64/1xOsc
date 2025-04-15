@@ -119,6 +119,7 @@ _1xOscAudioProcessorEditor::_1xOscAudioProcessorEditor (_1xOscAudioProcessor& p)
     specialAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "special", specialSlider);
     
+    backgroundImage = juce::ImageCache::getFromMemory(BinaryData::OnexOsc_UI_Background_png, BinaryData::OnexOsc_UI_Background_pngSize);
 }
 
 _1xOscAudioProcessorEditor::~_1xOscAudioProcessorEditor()
@@ -133,7 +134,10 @@ void _1xOscAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (juce::Colours::white);
     g.setFont (juce::FontOptions (15.0f));
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    //g.drawFittedText ("1xOsc", getLocalBounds(), juce::Justification::topRight, 1);
+    
+    // Draw the background image stretched to fit
+    g.drawImage(backgroundImage, getLocalBounds().toFloat());
 }
 
 void _1xOscAudioProcessorEditor::addSliderWithLabel(juce::Slider& slider, juce::Label& label, const juce::String& name)
@@ -155,7 +159,7 @@ void _1xOscAudioProcessorEditor::resized()
     waveformLabel.setBounds(10, 70, 100, 20); // Position label below the combo box
     
     const int sliderSize = 70;
-    const int adsrYOffset = 100;
+    const int adsrYOffset = 110;
     attackSlider.setBounds(20, adsrYOffset, sliderSize, sliderSize);
     decaySlider.setBounds(90, adsrYOffset, sliderSize, sliderSize);
     sustainSlider.setBounds(160, adsrYOffset, sliderSize, sliderSize);

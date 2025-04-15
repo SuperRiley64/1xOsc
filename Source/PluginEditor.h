@@ -98,6 +98,8 @@ private:
 
     // Helper method to configure sliders and labels
     void addSliderWithLabel(juce::Slider& slider, juce::Label& label, const juce::String& name);
+    
+    juce::Image backgroundImage;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (_1xOscAudioProcessorEditor)
 };
