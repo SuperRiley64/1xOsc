@@ -67,13 +67,18 @@ public:
         tailOff = 0.0;
         frequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
         updateFrequency();
-        angleDelta = juce::MathConstants<double>::twoPi * frequency / getSampleRate();
         
         adsr.noteOn();
         filterEnvelope.setParameters(filterEnvelopeParams);
         filterEnvelope.reset();
         filterEnvelope.noteOn();
         filter.prepare({ getSampleRate(), 512, 1 });
+        
+        // randomize the supersaw phases
+        for (int i = 0; i < 7; ++i)
+        {
+            detunedPhases[i] = juce::Random::getSystemRandom().nextDouble() * juce::MathConstants<double>::twoPi;
+        }
     }
 
     void stopNote (float /*velocity*/, bool allowTailOff) override
@@ -135,7 +140,7 @@ public:
         // Log values to desktop log file
         juce::Logger::writeToLog("updateFrequency | coarseTune: " + juce::String(coarseTune) +
                                  ", fineTune: " + juce::String(fineTune) +
-                                 ", tunedFrequency: " + juce::String(frequency));
+                                 ", tunedFrequency: " + juce::String(tunedFrequency));
     }
     
     float getFilterEnvelopeValue() const { return filterEnvelopeValue; }
@@ -191,7 +196,7 @@ public:
                         
                         for (int i = 0; i < 7; ++i)
                         {
-                            float detune = detuneOffsets[i] * static_cast<float>(special/4.0f); // bring the range down a bit
+                            float detune = detuneOffsets[i] * static_cast<float>(special/2.0f); // bring the range down a bit
                             double freq = tunedFrequency * std::pow(2.0, detune / 12.0);
                             double phaseDelta = juce::MathConstants<double>::twoPi * freq / getSampleRate();
                             
@@ -209,9 +214,10 @@ public:
                         break;
                     }
                     else {
-                        // simple saw
-                        double phase = currentAngle / juce::MathConstants<double>::twoPi;
-                        sampleValue = static_cast<float>(2.0 * phase - 1.0); // output in range [-1, 1]
+                        // proper simple saw with wrapped phase
+                        double phase = fmod(currentAngle, juce::MathConstants<double>::twoPi) / juce::MathConstants<double>::twoPi;
+                        sampleValue = static_cast<float>(2.0 * phase - 1.0);
+                        break;
                     }
                 }
                 case OscillatorMode::Square:

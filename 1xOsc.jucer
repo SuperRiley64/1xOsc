@@ -2,9 +2,12 @@
 
 <JUCERPROJECT id="laZRRm" name="1xOsc" projectType="audioplug" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn"
-              pluginAUMainType="'augn'" pluginFormats="buildAU,buildVST3">
+              pluginAUMainType="'augn'" pluginFormats="buildAU,buildStandalone,buildVST3"
+              cppLanguageStandard="20">
   <MAINGROUP id="Qnr6kt" name="1xOsc">
     <GROUP id="{22143E88-51C7-08EC-727A-E753B3FEFC8A}" name="Source">
+      <FILE id="cgQSqG" name="SineWaveSound.h" compile="0" resource="0" file="Source/SineWaveSound.h"/>
+      <FILE id="hiwfiW" name="SineWaveVoice.h" compile="0" resource="0" file="Source/SineWaveVoice.h"/>
       <FILE id="MiSKtA" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="uRtYfQ" name="PluginProcessor.h" compile="0" resource="0"
@@ -13,6 +16,8 @@
             file="Source/PluginEditor.cpp"/>
       <FILE id="uUZNCS" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
     </GROUP>
+    <FILE id="GKJcsM" name="OnexOsc_UI_Background.png" compile="0" resource="1"
+          file="Images/OnexOsc_UI_Background.png"/>
   </MAINGROUP>
   <MODULES>
     <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -24,6 +29,7 @@
     <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
@@ -50,6 +56,7 @@
         <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
   </EXPORTFORMATS>
