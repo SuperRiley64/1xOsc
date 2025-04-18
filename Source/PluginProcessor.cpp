@@ -43,10 +43,6 @@ _1xOscAudioProcessor::_1xOscAudioProcessor()
     apvts.addParameterListener("filterAttack", this);
     apvts.addParameterListener("filterDecayRelease", this);
     apvts.addParameterListener("filterSustain", this);
-    
-    juce::File logFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("plugin_debug_log.txt");
-    juce::Logger::setCurrentLogger(new juce::FileLogger(logFile, "JUCE Plugin Debug Log", 100000));
-    juce::Logger::writeToLog("Logger initialized.");
 }
 
 _1xOscAudioProcessor::~_1xOscAudioProcessor()
